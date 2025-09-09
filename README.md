@@ -6,7 +6,7 @@ Un petit générateur de scénarios façon **machine à sous** inspiré du déto
 ---
 
 ## 🚀 Démo en ligne
-👉 [Tester sur GitHub Pages](https://github.com/gotoo77/mozinor-gen)
+👉 [Tester sur GitHub Pages](https://gotoo77.github.io/mozinor-gen/)
 
 *(clique, appuie sur **TOURNER**, et laisse la magie opérer…)*
 
