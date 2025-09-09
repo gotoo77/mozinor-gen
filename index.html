@@ -1,0 +1,374 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Générateur de scénario – style Mozinor</title>
+  <meta name="description" content="Générateur de pitchs en 4 rouleaux (Sujet / Action / Objet / Lieu) façon machine à sous. Parodie style Mozinor/Luc Besson. 100% client-side." />
+  <style>
+    :root{
+      --bg:#0b0d12; --panel:#121621; --ink:#e6e9f1; --accent:#ffd04d; --accent2:#47e4c2; --muted:#8b93a7; --danger:#ff5c7a;
+    }
+    html,body{margin:0;height:100%;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Inter,Arial,sans-serif;background:linear-gradient(180deg,#0b0d12,#151a26);} 
+    a{color:var(--accent2)} a:hover{opacity:.85}
+    .wrap{max-width:1100px;margin:0 auto;padding:28px}
+    h1{color:var(--ink);font-size:clamp(24px,2.8vw,42px);letter-spacing:.3px;margin:0 0 12px 0}
+    .sub{color:var(--muted);margin:0 0 18px 0}
+
+    /* Slot machine */
+    .slot{background:radial-gradient(120% 120% at 50% 0%, #1b2130 0%, #0b0d12 60%);border:1px solid #262c3b;border-radius:18px;padding:20px;box-shadow:0 24px 80px rgba(0,0,0,.45) inset, 0 16px 48px rgba(0,0,0,.35)}
+    .reels{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+    .reel{background:linear-gradient(#f8fbff,#e9edf7);height:150px;border-radius:12px;border:2px solid #0f1320;box-shadow:inset 0 0 0 3px #ffffffcc, 0 3px 0 #0005;display:flex;align-items:center;justify-content:center;padding:8px; perspective:400px}
+    .card{font-weight:800;font-size:clamp(18px,2.1vw,26px);line-height:1.15;text-align:center;letter-spacing:.3px;color:#121621;text-transform:uppercase}
+    .dash{color:#222;opacity:.25;padding:0 6px;font-weight:400}
+    .controls{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-top:16px}
+    button{appearance:none;border:0;background:var(--accent);color:#181300;font-weight:900;border-radius:12px;padding:12px 16px;cursor:pointer;box-shadow:0 8px 0 #b48e26, 0 14px 28px rgba(0,0,0,.35);transform:translateY(0);transition:transform .05s}
+    button:hover{filter:saturate(1.08)}
+    button:active{transform:translateY(2px);box-shadow:0 6px 0 #b48e26, 0 10px 18px rgba(0,0,0,.35)}
+    button[disabled]{opacity:.6;cursor:not-allowed}
+    .ghost{background:#2a3143;color:#e6e9f1;box-shadow:0 8px 0 #1b2130, 0 14px 28px rgba(0,0,0,.35)}
+    .danger{background:var(--danger);box-shadow:0 8px 0 #a53346}
+
+    .result{color:var(--ink);font-size:clamp(16px,1.5vw,18px);margin-top:10px;opacity:.9}
+    .tiny{font-size:12px;color:var(--muted)}
+
+    /* Editor */
+    details{margin-top:18px;border:1px solid #262c3b;border-radius:12px;overflow:hidden}
+    summary{list-style:none;padding:12px 14px;background:#121621;color:var(--ink);font-weight:700;cursor:pointer}
+    summary::-webkit-details-marker{display:none}
+    .panel{padding:14px;background:#0f1420}
+    .cols{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+    textarea{width:100%;min-height:140px;border-radius:10px;border:1px solid #283047;background:#0f1320;color:#dfe6ff;padding:10px;font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace}
+    label{display:block;color:var(--muted);font-size:12px;margin:6px 0}
+    .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:12px}
+    input[type="checkbox"]{transform:scale(1.2)}
+
+    /* Spin animation */
+    .spin{animation:spin 420ms cubic-bezier(.2,.7,.2,1)}
+    @keyframes spin{0%{transform:translateY(-8px) rotateX(40deg)} 100%{transform:translateY(0) rotateX(0)} }
+
+    footer{margin:22px 0;color:var(--muted);font-size:13px}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>🎰 Générateur de scénario <span class="tiny">(parodie style Mozinor)</span></h1>
+    <p class="sub">Fais tourner la machine à sous pour obtenir un pitch improbable façon « recette d’action Besson à la française».
+      100% local, rien n’est envoyé nulle part. Déploie <em>Options</em> pour personnaliser les listes.
+      Maintenant avec <strong>sons</strong> 🎵!</p>
+
+    <div class="slot">
+      <div class="reels" id="reels">
+        <div class="reel"><div class="card" id="r1">Un chauffeur de taxi</div></div>
+        <div class="reel"><div class="card" id="r2">protège</div></div>
+        <div class="reel"><div class="card" id="r3">une ado surdouée</div></div>
+        <div class="reel"><div class="card" id="r4">en banlieue</div></div>
+      </div>
+      <div class="controls">
+        <button id="btnSpin">TOURNER</button>
+        <button class="ghost" id="btnCopy">Copier le pitch</button>
+        <button class="ghost" id="btnShare">Lien partage</button>
+        <button class="danger" id="btnClear">Reset listes</button>
+        <span class="result" id="result">Un chauffeur de taxi <span class="dash">—</span> protège <span class="dash">—</span> une ado surdouée <span class="dash">—</span> en banlieue.</span>
+      </div>
+    </div>
+
+    <details>
+      <summary>⚙️ Options / Listes personnalisées</summary>
+      <div class="panel">
+        <div class="row">
+          <label><input type="checkbox" id="toggleMoz" /> Activer le «mode nostalgie» (ajoute des formules grinçantes/satiriques). <span class="tiny">Par défaut désactivé pour rester bon esprit.</span></label>
+        </div>
+        <div class="cols">
+          <div>
+            <label for="ta1">Sujets (un par ligne)</label>
+            <textarea id="ta1"></textarea>
+          </div>
+          <div>
+            <label for="ta2">Actions (un par ligne)</label>
+            <textarea id="ta2"></textarea>
+          </div>
+          <div>
+            <label for="ta3">Objets/Compléments (un par ligne)</label>
+            <textarea id="ta3"></textarea>
+          </div>
+          <div>
+            <label for="ta4">Lieux (un par ligne)</label>
+            <textarea id="ta4"></textarea>
+          </div>
+        </div>
+        <div class="row">
+          <button id="btnSave" class="ghost">Enregistrer</button>
+          <button id="btnExport" class="ghost">Exporter JSON</button>
+          <input id="importFile" type="file" accept="application/json" style="display:none" />
+          <button id="btnImport" class="ghost">Importer JSON</button>
+        </div>
+      </div>
+    </details>
+
+    <footer>
+      Fait avec ❤️ par Gotoo, pour se marrer entre potes. Inspiré des détournements de Mozinor (hommage). Code sous licence MIT. | <a href="https://github.com/new" target="_blank" rel="noopener">Déploie sur GitHub Pages</a>
+    </footer>
+  </div>
+
+  <script>
+    // --- Données par défaut (bon esprit) ---
+    const base = {
+      sujets: [
+        "Un chauffeur de taxi",
+        "Une tatoueuse taciturne",
+        "Un livreur pressé",
+        "Un ange paumé",
+        "Un chinois",
+        "Un Yamakasi",
+        "Un ex‑flic",
+        "Une pute",
+        "Une hackeuse insomniaque",
+        "Un cascadeur en reconversion",
+        "Un ado casse‑cou",
+        "Une apprentie comédienne",
+        "Un scientifique hermaphodite"
+      ],
+      actions: [
+        "protège",
+        "pète la gueule à",
+        "escorte",
+        "braque",
+        "sauve",
+        "kidnappe",
+        "fait chanter",
+        "délivre",
+        "traque",
+        "arnaque",
+        "fait équipe avec"
+      ],
+      compl: [
+        "une ado surdouée",
+        "un ministre corrompu",
+        "un chat qui parle",
+        "un tueur à gages",
+        "un alien amnésique",
+        "un flic",
+        "un producteur véreux",
+        "une diva capricieuse",
+        "une pute",
+        "un robot sentimental",
+        "un milliardaire blasé"
+      ],
+      lieux: [
+        "en banlieue",
+        "sur la Lune",
+        "au périph' à 6h",
+        "dans une Audi",
+        "dans le métro à l'heure de pointe",
+        "au fin fond de la Creuse",
+        "à Monaco pendant le GP",
+        "dans un kebab",
+        "dans un TGV",
+        "sur un plateau télé"
+      ]
+    };
+
+    // --- Pack « nostalgie Mozinor » (satire). Activable par l'utilisateur. ---
+    const nostalgie = {
+      sujets: [
+        "Un taxi",
+        "Un livreur en T‑Max",
+        "Un gars de la banlieue",
+        "Une voleuse maline",
+        "Un coursier",
+        "Une fliquette cash"
+      ],
+      actions: [
+        "protège",
+        "pète la gueule à",
+        "sauve",
+        "dépasse à 180",
+        "dézingue",
+        "met à l'amende"
+      ],
+      compl: [
+        "un flic",
+        "un mafieux",
+        "un ministre",
+        "un pilote de F1",
+        "un braqueur",
+        "une pute"
+      ],
+      lieux: [
+        "en banlieue",
+        "dans une Audi",
+        "sur le Vieux-Port",
+        "dans un parking souterrain",
+        "sur l'A86",
+        "au commissariat"
+      ]
+    };
+
+    const $ = (s) => document.querySelector(s);
+    const reels = [$('#r1'), $('#r2'), $('#r3'), $('#r4')];
+    const result = $('#result');
+
+    // State
+    let data = loadState();
+    hydrateTextareas();
+    // render(data.sujets[0], data.actions[0], data.compl[0], data.lieux[0]);
+    render("Un taxi", "protège", "un flic", "en banlieue");
+
+    // --- Audio (WebAudio API) ---
+    const audio = new (window.AudioContext||window.webkitAudioContext)();
+    function beep({freq=800, dur=0.08, type='square', gain=0.02}={}){
+      const o = audio.createOscillator();
+      const g = audio.createGain();
+      o.type = type; o.frequency.value = freq; g.gain.value = gain; o.connect(g).connect(audio.destination); o.start(); o.stop(audio.currentTime + dur);
+    }
+    function slotTick(){ beep({freq:900, dur:0.04, type:'square', gain:0.03}); }
+    function slotStop(){ beep({freq:480, dur:0.07, type:'sawtooth', gain:0.035}); }
+    function jackpot(){
+      // simple little arpeggio
+      const notes = [880, 1175, 1568, 2093];
+      notes.forEach((f,i)=> setTimeout(()=> beep({freq:f, dur:0.12, type:'triangle', gain:0.05}), i*120));
+    }
+
+    let spinning = false;
+    async function spin(){
+      if(spinning) return; spinning = true; toggleControls(true);
+      const s = pick(data.sujets), a = pick(data.actions), c = pick(data.compl), l = pick(data.lieux);
+      const targets = [s,a,c,l];
+      // Sequential reel animation with ticks
+      for(let i=0;i<reels.length;i++){
+        await spinReel(i, targets[i]);
+      }
+      render(s,a,c,l);
+      // Jackpot condition (humour): action/compl/lieu match specific entries
+      const isJack = /pète la gueule/i.test(a) || /une pute/i.test(c) || /dans une audi/i.test(l);
+      if(isJack) jackpot();
+      spinning = false; toggleControls(false);
+    }
+
+    function spinReel(index, finalText){
+      return new Promise((resolve)=>{
+        const el = reels[index];
+        const pool = [data.sujets, data.actions, data.compl, data.lieux][index];
+        let t=0; const duration = 600 + index*250; // later reels spin longer
+        const interval = setInterval(()=>{
+          el.classList.remove('spin'); void el.offsetWidth; el.classList.add('spin');
+          el.textContent = pool[Math.floor(Math.random()*pool.length)];
+          slotTick(); t+=50;
+        }, 50);
+        setTimeout(()=>{ clearInterval(interval); el.textContent = finalText; slotStop(); resolve(); }, duration);
+      });
+    }
+
+    function render(s,a,c,l){
+      result.innerHTML = `${escapeHTML(s)} <span class="dash">—</span> ${escapeHTML(a)} <span class="dash">—</span> ${escapeHTML(c)} <span class="dash">—</span> ${escapeHTML(l)}.`;
+    }
+
+    function pick(arr){ return arr[Math.floor(Math.random()*arr.length)] }
+
+    function escapeHTML(str){
+      return str.replace(/[&<>"']/g, s=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[s]));
+    }
+
+    // Persistence
+    function loadState(){
+      try{
+        const urlCfg = new URLSearchParams(location.hash.slice(1)).get('cfg');
+        if(urlCfg){ return JSON.parse(decodeURIComponent(atob(urlCfg))) }
+      }catch(e){}
+      const saved = localStorage.getItem('moz-gen-state-v2');
+      if(saved){ return JSON.parse(saved) }
+      return structuredClone(base);
+    }
+
+    function saveState(){
+      localStorage.setItem('moz-gen-state-v2', JSON.stringify(data));
+    }
+
+    function hydrateTextareas(){
+      $('#ta1').value = data.sujets.join('\n');
+      $('#ta2').value = data.actions.join('\n');
+      $('#ta3').value = data.compl.join('\n');
+      $('#ta4').value = data.lieux.join('\n');
+    }
+
+    function collectFromTextareas(){
+      const clean = s => s.split(/\n+/).map(v=>v.trim()).filter(Boolean);
+      data = { sujets: clean($('#ta1').value), actions: clean($('#ta2').value), compl: clean($('#ta3').value), lieux: clean($('#ta4').value) };
+    }
+
+    function toggleControls(disabled){
+      ['#btnSpin','#btnCopy','#btnShare','#btnClear','#btnSave','#btnExport','#btnImport'].forEach(id=>{
+        const b = $(id); if(b) b.disabled = disabled;
+      });
+    }
+
+    // UI bindings
+    $('#btnSpin').addEventListener('click', ()=>{ audio.resume(); spin(); });
+    $('#btnCopy').addEventListener('click', ()=>{
+      const text = result.textContent;
+      navigator.clipboard.writeText(text).then(()=>{ toast('Pitch copié dans le presse‑papiers'); });
+    });
+
+    $('#btnShare').addEventListener('click', ()=>{
+      const cfg = btoa(encodeURIComponent(JSON.stringify(data)));
+      const url = location.origin + location.pathname + '#cfg=' + cfg;
+      navigator.clipboard.writeText(url).then(()=>toast('Lien copié. Colle et roule !'));
+    });
+
+    $('#btnSave').addEventListener('click', ()=>{
+      collectFromTextareas();
+      saveState();
+      toast('Listes enregistrées ✅');
+    });
+
+    $('#btnClear').addEventListener('click', ()=>{
+      data = structuredClone(base);
+      saveState();
+      hydrateTextareas();
+      toast('Listes réinitialisées');
+    });
+
+    $('#btnExport').addEventListener('click', ()=>{
+      const blob = new Blob([JSON.stringify(data,null,2)], {type:'application/json'});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'moz_generator_listes.json';
+      a.click();
+      URL.revokeObjectURL(a.href);
+    });
+
+    $('#btnImport').addEventListener('click', ()=> $('#importFile').click());
+    $('#importFile').addEventListener('change', (e)=>{
+      const file = e.target.files[0]; if(!file) return;
+      const reader = new FileReader();
+      reader.onload = () => { try{ data = JSON.parse(reader.result); hydrateTextareas(); saveState(); toast('Listes importées ✅') }catch(err){ toast('Import invalide', true) } };
+      reader.readAsText(file);
+    });
+
+    $('#toggleMoz').addEventListener('change', (e)=>{
+      const on = e.target.checked;
+      const merged = {
+        sujets: on ? uniq([...base.sujets, ...nostalgie.sujets]) : base.sujets,
+        actions: on ? uniq([...base.actions, ...nostalgie.actions]) : base.actions,
+        compl:   on ? uniq([...base.compl,   ...nostalgie.compl])   : base.compl,
+        lieux:   on ? uniq([...base.lieux,   ...nostalgie.lieux])   : base.lieux,
+      };
+      data = merged; hydrateTextareas(); saveState();
+      toast(on ? 'Mode nostalgie activé 🕹️' : 'Mode nostalgie désactivé');
+    });
+
+    function uniq(arr){ return [...new Set(arr)] }
+
+    // Tiny toast
+    function toast(msg, bad){
+      let t = document.createElement('div');
+      t.textContent = msg; t.style.position='fixed'; t.style.left='50%'; t.style.transform='translateX(-50%)';
+      t.style.bottom='24px'; t.style.padding='10px 14px'; t.style.borderRadius='12px'; t.style.fontWeight='700';
+      t.style.background= bad? '#ff5c7a' : '#47e4c2'; t.style.color='#0b0d12'; t.style.boxShadow='0 10px 28px rgba(0,0,0,.35)';
+      document.body.appendChild(t); setTimeout(()=>{ t.style.transition='all .35s ease'; t.style.opacity='0'; t.style.transform='translateX(-50%) translateY(10px)'; }, 1500);
+      setTimeout(()=> t.remove(), 2000);
+    }
+  </script>
+</body>
+</html>
